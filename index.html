@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=0.5">
   <title>MAPY.WORK</title>
   <link href="favicon.ico" rel="icon" type="image/x-icon">
   <!-- 載入 SheetJS 庫 -->
@@ -46,6 +47,11 @@
       overflow: hidden;
     }
     #chartsContent {
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      overflow: hidden;
+      opacity: 1;
+    }
+    #merchantDetailsContent {
       transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
       overflow: hidden;
       opacity: 1;
@@ -96,9 +102,9 @@
   <div id="result-view" class="hidden">
     <div class="container mx-auto px-4 py-6">
       <!-- Logo 和標題並排 -->
-      <div class="flex items-center justify-between mb-8 border-b pb-4">
+      <div style="flex-wrap: wrap;" class="flex items-center justify-between mb-8 border-b pb-4">
         <div class="flex items-center gap-2">
-          <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='mpay_work.html'">
+          <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='index.html'">
             <span class="text-primary">MPAY</span>
             <span class="logo-dot"></span>
             <span class="text-gray-700">WORK</span>
@@ -180,41 +186,53 @@
           </div>
         </div>
 
+        <!-- 修改商戶支出明細區域 -->
         <div class="bg-white rounded-xl overflow-hidden">
-          <div class="px-6 py-4 bg-gray-50/50">
-            <div class="flex justify-between items-center">
+          <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+               onclick="toggleMerchantDetails()">
+            <div class="flex items-center gap-4">
               <h3 class="text-gray-700 font-medium">各商戶支出明細</h3>
+              <span class="text-sm text-gray-500">
+                共 <span class="text-primary font-medium">${Object.keys(breakdown).length}</span> 個商戶
+              </span>
+            </div>
+            <div class="flex items-center gap-4">
               <input 
                 type="text" 
                 id="merchantFilter" 
                 placeholder="搜尋商戶..." 
                 class="px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:border-primary/30"
+                onclick="event.stopPropagation()"
               >
+              <button class="text-gray-500 text-sm" id="toggleMerchantBtn">
+                展開 ▼
+              </button>
             </div>
           </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full" id="merchantTable">
-              <thead class="bg-gray-50/30">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
-                    商戶
-                    <span class="ml-1 sort-icon">↕</span>
-                  </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
-                    筆數
-                    <span class="ml-1 sort-icon">↕</span>
-                  </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
-                    總金額
-                    <span class="ml-1 sort-icon">↕</span>
-                  </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
-                    平均金額
-                    <span class="ml-1 sort-icon">↕</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
+          <div id="merchantDetailsContent" class="transition-all duration-300" style="display: none; max-height: 0; opacity: 0;">
+            <div class="overflow-x-auto">
+              <table class="min-w-full" id="merchantTable">
+                <thead class="bg-gray-50/30">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
+                      商戶
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
+                      筆數
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
+                      總金額
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
+                      平均金額
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
       `;
 
       for (let merchant in breakdown) {
@@ -232,13 +250,46 @@
       }
 
       resultHTML += `
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 添加 Footer -->
+  <footer class="bg-gray-50/50 py-6 mt-12">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="text-gray-500 text-sm">
+          © 2024 Macau Digital Solutions
+        </div>
+        <div class="flex items-center gap-6">
+          <a href="https://instagram.com/macau.tech" 
+             target="_blank"
+             class="text-gray-400 hover:text-primary transition-colors">
+            <span class="flex items-center gap-1">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              macau.tech
+            </span>
+          </a>
+          <a href="mailto:info@mpay.work" 
+             class="text-gray-400 hover:text-primary transition-colors">
+            <span class="flex items-center gap-1">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+              </svg>
+              info@mpay.work
+            </span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <script>
     // 頁面載入時檢查是否有已保存的分析結果
@@ -276,6 +327,16 @@
           chartsContent.style.maxHeight = chartsContent.scrollHeight + 'px';
           chartsContent.style.opacity = '1';
           chartsButton.textContent = '收起 ▲';
+        }
+
+        // 確保商戶明細內容預設為收起狀態
+        const merchantContent = document.getElementById('merchantDetailsContent');
+        const merchantButton = document.getElementById('toggleMerchantBtn');
+        if (merchantContent && merchantButton) {
+          merchantContent.style.display = 'none';
+          merchantContent.style.maxHeight = '0';
+          merchantContent.style.opacity = '0';
+          merchantButton.textContent = '展開 ▼';
         }
       }
     });
@@ -480,60 +541,73 @@
             </div>
           </div>
 
+          <!-- 修改商戶支出明細區域 -->
           <div class="bg-white rounded-xl overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50/50">
-              <div class="flex justify-between items-center">
+            <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+                 onclick="toggleMerchantDetails()">
+              <div class="flex items-center gap-4">
                 <h3 class="text-gray-700 font-medium">各商戶支出明細</h3>
+                <span class="text-sm text-gray-500">
+                  共 <span class="text-primary font-medium">${Object.keys(breakdown).length}</span> 個商戶
+                </span>
+              </div>
+              <div class="flex items-center gap-4">
                 <input 
                   type="text" 
                   id="merchantFilter" 
                   placeholder="搜尋商戶..." 
                   class="px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:border-primary/30"
+                  onclick="event.stopPropagation()"
                 >
+                <button class="text-gray-500 text-sm" id="toggleMerchantBtn">
+                  展開 ▼
+                </button>
               </div>
             </div>
-            <div class="overflow-x-auto">
-              <table class="min-w-full" id="merchantTable">
-                <thead class="bg-gray-50/30">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
-                      商戶
-                      <span class="ml-1 sort-icon">↕</span>
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
-                      筆數
-                      <span class="ml-1 sort-icon">↕</span>
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
-                      總金額
-                      <span class="ml-1 sort-icon">↕</span>
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
-                      平均金額
-                      <span class="ml-1 sort-icon">↕</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-      `;
-
-      for (let merchant in breakdown) {
-        const count = breakdown[merchant].count;
-        const total = breakdown[merchant].total;
-        const avg = total / count;
-        resultHTML += `
-          <tr class="hover:bg-gray-50/30 transition-colors">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
-          </tr>
+            <div id="merchantDetailsContent" class="transition-all duration-300" style="display: none; max-height: 0; opacity: 0;">
+              <div class="overflow-x-auto">
+                <table class="min-w-full" id="merchantTable">
+                  <thead class="bg-gray-50/30">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
+                        商戶
+                        <span class="ml-1 sort-icon">↕</span>
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
+                        筆數
+                        <span class="ml-1 sort-icon">↕</span>
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
+                        總金額
+                        <span class="ml-1 sort-icon">↕</span>
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
+                        平均金額
+                        <span class="ml-1 sort-icon">↕</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
         `;
-      }
 
-      resultHTML += `
-                </tbody>
-              </table>
+        for (let merchant in breakdown) {
+          const count = breakdown[merchant].count;
+          const total = breakdown[merchant].total;
+          const avg = total / count;
+          resultHTML += `
+            <tr class="hover:bg-gray-50/30 transition-colors">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
+            </tr>
+          `;
+        }
+
+        resultHTML += `
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -833,6 +907,32 @@
           content.style.opacity = '1';
           button.textContent = '收起 ▲';
         }, 0);
+      }
+    }
+
+    // 修改商戶明細展開/收起功能
+    function toggleMerchantDetails() {
+      const content = document.getElementById('merchantDetailsContent');
+      const button = document.getElementById('toggleMerchantBtn');
+      
+      if (content.style.display === 'none' || !content.style.maxHeight) {
+        // 展開內容
+        content.style.display = 'block';
+        // 使用 setTimeout 確保 display:block 已經生效
+        setTimeout(() => {
+          content.style.maxHeight = content.scrollHeight + 'px';
+          content.style.opacity = '1';
+          button.textContent = '收起 ▲';
+        }, 10);
+      } else {
+        // 收起內容
+        content.style.maxHeight = '0';
+        content.style.opacity = '0';
+        button.textContent = '展開 ▼';
+        // 等待動畫完成後隱藏內容
+        setTimeout(() => {
+          content.style.display = 'none';
+        }, 300);
       }
     }
   </script>
