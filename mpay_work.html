@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>MAPY.WORK</title>
+  <link href="favicon.ico" rel="icon" type="image/x-icon">
+  <!-- 載入 SheetJS 庫 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Chart.js 庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#fd8204',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .logo-text {
+      font-family: 'Arial', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background-color: #fd8204;
+      border-radius: 50%;
+      margin: 0 2px;
+      position: relative;
+      top: -8px;
+    }
+    .slogan {
+      font-family: 'Noto Sans TC', sans-serif;
+      font-weight: 300;
+    }
+    #monthlyAnalysisContent {
+      transition: max-height 0.3s ease-out;
+      overflow: hidden;
+    }
+    #chartsContent {
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      overflow: hidden;
+      opacity: 1;
+    }
+  </style>
+  <!-- 添加 Noto Sans TC 字體 -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body class="bg-white min-h-screen">
+  <div id="initial-view" class="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen">
+    <!-- Logo 區域 -->
+    <div class="mb-4">
+      <div class="logo-text text-5xl">
+        <span class="text-primary">MPAY</span>
+        <span class="logo-dot"></span>
+        <span class="text-gray-700">WORK</span>
+      </div>
+    </div>
+    
+    <!-- 標語 -->
+    <p class="slogan text-gray-500 mb-12 text-lg">智能分析・輕鬆管理</p>
+    
+    <div class="w-full max-w-md">
+      <label class="block">
+        <input type="file" 
+               id="fileInput" 
+               accept=".xlsx, .xls"
+               class="block w-full text-sm text-gray-500
+                      file:mr-4 file:py-3 file:px-6
+                      file:rounded-full file:border-0
+                      file:text-sm file:font-medium
+                      file:bg-primary/10 file:text-primary
+                      hover:file:bg-primary/20
+                      cursor-pointer
+                      transition-all">
+      </label>
+      
+      <!-- 使用教學按鈕 -->
+      <div class="text-center mt-4">
+        <button onclick="window.location.href='tutorial.html'" 
+                class="text-sm text-gray-400 hover:text-primary transition-colors">
+          使用教學 →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="result-view" class="hidden">
+    <div class="container mx-auto px-4 py-6">
+      <!-- Logo 和標題並排 -->
+      <div class="flex items-center justify-between mb-8 border-b pb-4">
+        <div class="flex items-center gap-2">
+          <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='mpay_work.html'">
+            <span class="text-primary">MPAY</span>
+            <span class="logo-dot"></span>
+            <span class="text-gray-700">WORK</span>
+          </div>
+          <span class="text-gray-300 mx-3">|</span>
+          <span class="slogan text-gray-500 text-sm">智能收支・輕鬆管理</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <button 
+            onclick="resetView()"
+            class="px-4 py-2 text-sm text-primary border border-primary/20 rounded-full hover:bg-primary/5 transition-colors">
+            重新上傳
+          </button>
+          <h1 class="text-lg font-medium text-gray-600">支出分析報表</h1>
+        </div>
+      </div>
+      
+      <div id="result" class="space-y-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-gray-50/50 rounded-xl p-6">
+            <p class="text-gray-500 text-sm mb-2">支出總筆數</p>
+            <p class="text-3xl font-bold text-primary">${expenseCount}</p>
+          </div>
+          <div class="bg-gray-50/50 rounded-xl p-6">
+            <p class="text-gray-500 text-sm mb-2">支出總金額</p>
+            <p class="text-3xl font-bold text-primary">$${totalExpense.toFixed(2)}</p>
+          </div>
+        </div>
+
+        <!-- 圖表區域 -->
+        <div class="bg-white rounded-xl overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+               onclick="toggleCharts()">
+            <h3 class="text-gray-700 font-medium">圖表分析</h3>
+            <button class="text-gray-500 text-sm" id="toggleChartsBtn">
+              收起 ▲
+            </button>
+          </div>
+          <div id="chartsContent" class="p-6 transition-all duration-300">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-gray-50/30 rounded-xl p-6">
+                <h3 class="text-gray-700 font-medium mb-4">月度支出趨勢</h3>
+                <canvas id="expenseTrend"></canvas>
+              </div>
+              <div class="bg-gray-50/30 rounded-xl p-6">
+                <h3 class="text-gray-700 font-medium mb-4">前五大商戶支出</h3>
+                <canvas id="merchantPie"></canvas>
+              </div>
+              <div class="bg-gray-50/30 rounded-xl p-6">
+                <h3 class="text-gray-700 font-medium mb-4">每月交易筆數</h3>
+                <canvas id="transactionCount"></canvas>
+              </div>
+              <div class="bg-gray-50/30 rounded-xl p-6">
+                <h3 class="text-gray-700 font-medium mb-4">平均交易金額趨勢</h3>
+                <canvas id="avgTransaction"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 月度消費分析 -->
+        <div class="bg-white rounded-xl overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+               onclick="toggleMonthlyAnalysis()">
+            <div class="flex items-center gap-4">
+              <h3 class="text-gray-700 font-medium">月度消費分析</h3>
+              <span class="text-sm text-gray-500">
+                平均每月支出：<span class="text-primary font-medium">$${avgMonthlyExpense.toFixed(2)}</span>
+              </span>
+            </div>
+            <button class="text-gray-500 text-sm" id="toggleMonthlyBtn">
+              展開 ▼
+            </button>
+          </div>
+          <div id="monthlyAnalysisContent" class="p-6 space-y-4" style="display: none; max-height: 0;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${monthlyAnalysisHTML}
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50/50">
+            <div class="flex justify-between items-center">
+              <h3 class="text-gray-700 font-medium">各商戶支出明細</h3>
+              <input 
+                type="text" 
+                id="merchantFilter" 
+                placeholder="搜尋商戶..." 
+                class="px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:border-primary/30"
+              >
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full" id="merchantTable">
+              <thead class="bg-gray-50/30">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
+                    商戶
+                    <span class="ml-1 sort-icon">↕</span>
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
+                    筆數
+                    <span class="ml-1 sort-icon">↕</span>
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
+                    總金額
+                    <span class="ml-1 sort-icon">↕</span>
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
+                    平均金額
+                    <span class="ml-1 sort-icon">↕</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+      `;
+
+      for (let merchant in breakdown) {
+        const count = breakdown[merchant].count;
+        const total = breakdown[merchant].total;
+        const avg = total / count;
+        resultHTML += `
+          <tr class="hover:bg-gray-50/30 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
+          </tr>
+        `;
+      }
+
+      resultHTML += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 頁面載入時檢查是否有已保存的分析結果
+    window.addEventListener('load', function() {
+      const savedResult = localStorage.getItem('analysisResult');
+      if (savedResult) {
+        document.getElementById('initial-view').classList.add('hidden');
+        document.getElementById('result-view').classList.remove('hidden');
+        document.getElementById('result').innerHTML = savedResult;
+        
+        // 從 localStorage 獲取分析數據
+        const savedData = JSON.parse(localStorage.getItem('analysisData') || '{}');
+        if (savedData.monthlyData && savedData.breakdown) {
+          // 重新初始化圖表
+          initializeCharts(savedData.monthlyData, savedData.breakdown);
+        }
+        
+        // 設置表格篩選功能
+        setupTableFilter();
+        
+        // 確保月度分析內容預設為收起狀態
+        const content = document.getElementById('monthlyAnalysisContent');
+        const button = document.getElementById('toggleMonthlyBtn');
+        if (content && button) {
+          content.style.display = 'none';
+          content.style.maxHeight = '0';
+          button.textContent = '展開 ▼';
+        }
+        
+        // 確保圖表內容預設為展開狀態
+        const chartsContent = document.getElementById('chartsContent');
+        const chartsButton = document.getElementById('toggleChartsBtn');
+        if (chartsContent && chartsButton) {
+          chartsContent.style.display = 'block';
+          chartsContent.style.maxHeight = chartsContent.scrollHeight + 'px';
+          chartsContent.style.opacity = '1';
+          chartsButton.textContent = '收起 ▲';
+        }
+      }
+    });
+
+    // 當使用者選擇檔案時觸發
+    document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // 讀取檔案內容
+        const data = new Uint8Array(e.target.result);
+        // 解析 Excel 檔（讀取第一個工作表）
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        // 將工作表轉換成二維陣列 (每一列為一個陣列)
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        analyzeData(jsonData);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 分析資料
+    function analyzeData(data) {
+      // 檢查是否有資料
+      if (data.length === 0) {
+        document.getElementById('result').innerHTML = '<p>沒有資料。</p>';
+        return;
+      }
+
+      /**
+       * 假設 Excel 資料格式如下 (每一列共 7 欄)：
+       * [0] 交易ID
+       * [1] 日期時間
+       * [2] 商戶名稱
+       * [3] 交易類型 (例：「交易」或「轉入」)
+       * [4] 備註／附加資訊 (例如電話號碼)
+       * [5] 金額
+       * [6] 付款方式或其他資訊
+       */
+
+      let totalExpense = 0;    // 總支出金額
+      let expenseCount = 0;    // 支出筆數
+      let breakdown = {};      // 依商戶分類的支出明細
+
+      // 遍歷每一列 (注意：若檔案中有標題列，可適當跳過第一列)
+      data.forEach(function(row) {
+        // 若欄位數不足則略過
+        if (row.length < 7) return;
+        
+        // 僅分析「交易」的資料（支出），不包含「轉入」等
+        const transactionType = row[3];
+        if (transactionType !== '交易') return;
+        
+        const merchant = row[2];              // 商戶名稱
+        let amount = parseFloat(row[5]);        // 金額欄
+        if (isNaN(amount)) amount = 0;
+        
+        totalExpense += amount;
+        expenseCount++;
+        
+        // 如果該商戶尚未出現在 breakdown 物件中，先初始化
+        if (!breakdown[merchant]) {
+          breakdown[merchant] = { count: 0, total: 0 };
+        }
+        breakdown[merchant].count += 1;
+        breakdown[merchant].total += amount;
+      });
+
+      // 添加月度分析
+      let monthlyData = {};
+      let totalMonths = 0;
+      let totalMonthlyExpense = 0;
+      
+      data.forEach(function(row) {
+        if (row.length < 7 || row[3] !== '交易') return;
+        
+        const date = new Date(row[1]);
+        const monthKey = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const amount = parseFloat(row[5]);
+        
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = {
+            total: 0,
+            count: 0,
+            transactions: []
+          };
+          totalMonths++;
+        }
+        
+        monthlyData[monthKey].total += amount;
+        totalMonthlyExpense += amount;
+        monthlyData[monthKey].count += 1;
+        monthlyData[monthKey].transactions.push({
+          merchant: row[2],
+          amount: amount
+        });
+      });
+
+      const avgMonthlyExpense = totalMonthlyExpense / totalMonths;
+      console.log(totalMonthlyExpense)
+      console.log(totalMonths , avgMonthlyExpense);
+
+      // 生成月度分析HTML
+      let monthlyAnalysisHTML = '';
+      Object.keys(monthlyData)
+        .sort((a, b) => b.localeCompare(a))
+        .forEach(month => {
+          const data = monthlyData[month];
+          const avgPerTransaction = data.total / data.count;
+          const maxTransaction = data.transactions.reduce((max, curr) => 
+            curr.amount > max.amount ? curr : max
+          , {amount: 0});
+
+          monthlyAnalysisHTML += `
+            <div class="bg-gray-50/30 p-4 rounded-lg hover:bg-gray-50/50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-gray-700">${month} 月</h4>
+                <span class="text-primary font-medium">$${data.total.toFixed(2)}</span>
+              </div>
+              <div class="space-y-2 text-sm text-gray-600">
+                <p>・共 ${data.count} 筆交易</p>
+                <p>・平均每筆 $${avgPerTransaction.toFixed(2)}</p>
+                <p>・最大支出：${maxTransaction.merchant} ($${maxTransaction.amount.toFixed(2)})</p>
+              </div>
+            </div>
+          `;
+        });
+
+      // 切換視圖
+      document.getElementById('initial-view').classList.add('hidden');
+      document.getElementById('result-view').classList.remove('hidden');
+
+      // 更新結果顯示的 HTML 生成部分
+      let resultHTML = `
+        <div class="space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-50/50 rounded-xl p-6">
+              <p class="text-gray-500 text-sm mb-2">支出總筆數</p>
+              <p class="text-3xl font-bold text-primary">${expenseCount}</p>
+            </div>
+            <div class="bg-gray-50/50 rounded-xl p-6">
+              <p class="text-gray-500 text-sm mb-2">支出總金額</p>
+              <p class="text-3xl font-bold text-primary">$${totalExpense.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <!-- 圖表區域 -->
+          <div class="bg-white rounded-xl overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+                 onclick="toggleCharts()">
+              <h3 class="text-gray-700 font-medium">圖表分析</h3>
+              <button class="text-gray-500 text-sm" id="toggleChartsBtn">
+                收起 ▲
+              </button>
+            </div>
+            <div id="chartsContent" class="p-6 transition-all duration-300">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-50/30 rounded-xl p-6">
+                  <h3 class="text-gray-700 font-medium mb-4">月度支出趨勢</h3>
+                  <canvas id="expenseTrend"></canvas>
+                </div>
+                <div class="bg-gray-50/30 rounded-xl p-6">
+                  <h3 class="text-gray-700 font-medium mb-4">前五大商戶支出</h3>
+                  <canvas id="merchantPie"></canvas>
+                </div>
+                <div class="bg-gray-50/30 rounded-xl p-6">
+                  <h3 class="text-gray-700 font-medium mb-4">每月交易筆數</h3>
+                  <canvas id="transactionCount"></canvas>
+                </div>
+                <div class="bg-gray-50/30 rounded-xl p-6">
+                  <h3 class="text-gray-700 font-medium mb-4">平均交易金額趨勢</h3>
+                  <canvas id="avgTransaction"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 月度消費分析 -->
+          <div class="bg-white rounded-xl overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+                 onclick="toggleMonthlyAnalysis()">
+              <div class="flex items-center gap-4">
+                <h3 class="text-gray-700 font-medium">月度消費分析</h3>
+                <span class="text-sm text-gray-500">
+                  平均每月支出：<span class="text-primary font-medium">$${avgMonthlyExpense.toFixed(2)}</span>
+                </span>
+              </div>
+              <button class="text-gray-500 text-sm" id="toggleMonthlyBtn">
+                展開 ▼
+              </button>
+            </div>
+            <div id="monthlyAnalysisContent" class="p-6 space-y-4" style="display: none; max-height: 0;">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${monthlyAnalysisHTML}
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50/50">
+              <div class="flex justify-between items-center">
+                <h3 class="text-gray-700 font-medium">各商戶支出明細</h3>
+                <input 
+                  type="text" 
+                  id="merchantFilter" 
+                  placeholder="搜尋商戶..." 
+                  class="px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:border-primary/30"
+                >
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full" id="merchantTable">
+                <thead class="bg-gray-50/30">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
+                      商戶
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(1)">
+                      筆數
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
+                      總金額
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
+                      平均金額
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+      `;
+
+      for (let merchant in breakdown) {
+        const count = breakdown[merchant].count;
+        const total = breakdown[merchant].total;
+        const avg = total / count;
+        resultHTML += `
+          <tr class="hover:bg-gray-50/30 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
+          </tr>
+        `;
+      }
+
+      resultHTML += `
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('result').innerHTML = resultHTML;
+      
+      // 保存分析結果和數據
+      localStorage.setItem('analysisResult', resultHTML);
+      localStorage.setItem('analysisData', JSON.stringify({
+        monthlyData,
+        breakdown
+      }));
+      
+      // 初始化圖表
+      initializeCharts(monthlyData, breakdown);
+
+      // 設置表格篩選功能
+      setupTableFilter();
+    }
+
+    // 修改重置函數
+    function resetView() {
+      // 清空檔案輸入
+      document.getElementById('fileInput').value = '';
+      // 清空結果區域
+      document.getElementById('result').innerHTML = '';
+      // 清除所有 localStorage 數據
+      localStorage.removeItem('analysisResult');
+      localStorage.removeItem('analysisData');
+      // 切換回初始視圖
+      document.getElementById('result-view').classList.add('hidden');
+      document.getElementById('initial-view').classList.remove('hidden');
+    }
+
+    // 添加表格篩選功能
+    function setupTableFilter() {
+      const filterInput = document.getElementById('merchantFilter');
+      if (!filterInput) return;
+
+      filterInput.addEventListener('input', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        const table = document.getElementById('merchantTable');
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+        for (let row of rows) {
+          const merchantName = row.cells[0].textContent.toLowerCase();
+          if (merchantName.includes(searchText)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    // 添加表格排序功能
+    let currentSortColumn = -1;
+    let isAscending = true;
+
+    function sortTable(columnIndex) {
+      const table = document.getElementById('merchantTable');
+      const tbody = table.getElementsByTagName('tbody')[0];
+      const rows = Array.from(tbody.getElementsByTagName('tr'));
+      
+      // 更新排序方向
+      if (currentSortColumn === columnIndex) {
+        isAscending = !isAscending;
+      } else {
+        isAscending = true;
+        currentSortColumn = columnIndex;
+      }
+
+      // 更新所有排序图标
+      const icons = table.getElementsByClassName('sort-icon');
+      Array.from(icons).forEach((icon, index) => {
+        if (index === columnIndex) {
+          icon.textContent = isAscending ? '↑' : '↓';
+        } else {
+          icon.textContent = '↕';
+        }
+      });
+
+      // 排序函数
+      const compareFn = (a, b) => {
+        let aValue = a.cells[columnIndex].textContent;
+        let bValue = b.cells[columnIndex].textContent;
+        
+        // 处理数字列（移除货币符号并转换为数字）
+        if (columnIndex > 0) {
+          aValue = parseFloat(aValue.replace(/[^0-9.-]+/g, ''));
+          bValue = parseFloat(bValue.replace(/[^0-9.-]+/g, ''));
+        }
+        
+        if (columnIndex === 0) {
+          // 文本比较
+          return isAscending ? 
+            aValue.localeCompare(bValue, 'zh-Hant') : 
+            bValue.localeCompare(aValue, 'zh-Hant');
+        } else {
+          // 数字比较
+          return isAscending ? aValue - bValue : bValue - aValue;
+        }
+      };
+
+      // 排序行
+      rows.sort(compareFn);
+      
+      // 重新插入排序后的行
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // 添加展開/收起功能
+    function toggleMonthlyAnalysis() {
+      const content = document.getElementById('monthlyAnalysisContent');
+      const button = document.getElementById('toggleMonthlyBtn');
+      
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        button.textContent = '收起 ▲';
+        // 使用動畫效果展開
+        setTimeout(() => {
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }, 0);
+      } else {
+        content.style.maxHeight = '0';
+        button.textContent = '展開 ▼';
+        // 等待動畫完成後隱藏內容
+        setTimeout(() => {
+          content.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    // 添加圖表初始化函數
+    function initializeCharts(monthlyData, breakdown) {
+      const monthLabels = Object.keys(monthlyData).sort();
+      
+      // 1. 支出趨勢圖
+      new Chart(document.getElementById('expenseTrend'), {
+        type: 'line',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: '月度支出',
+            data: monthLabels.map(month => monthlyData[month].total),
+            borderColor: '#fd8204',
+            backgroundColor: 'rgba(253, 130, 4, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => `$${value.toFixed(0)}`
+              }
+            }
+          }
+        }
+      });
+
+      // 2. 商戶支出佔比圖（改為棒形圖）
+      const merchantData = Object.entries(breakdown)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 5);
+
+      new Chart(document.getElementById('merchantPie'), {
+        type: 'bar',
+        data: {
+          labels: merchantData.map(([merchant]) => merchant),
+          datasets: [{
+            data: merchantData.map(([, data]) => data.total),
+            backgroundColor: 'rgba(253, 130, 4, 0.7)',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',  // 使用水平棒形圖
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.raw;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  return `$${value.toFixed(2)} (${percentage}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => `$${value.toFixed(0)}`
+              }
+            },
+            y: {
+              ticks: {
+                font: {
+                  size: 11  // 調整商戶名稱字體大小
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 3. 每月交易筆數圖
+      new Chart(document.getElementById('transactionCount'), {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: '交易筆數',
+            data: monthLabels.map(month => monthlyData[month].count),
+            backgroundColor: 'rgba(253, 130, 4, 0.7)',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+
+      // 4. 平均交易金額趨勢圖
+      new Chart(document.getElementById('avgTransaction'), {
+        type: 'line',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: '平均交易金額',
+            data: monthLabels.map(month => 
+              monthlyData[month].total / monthlyData[month].count
+            ),
+            borderColor: '#fd8204',
+            backgroundColor: 'rgba(253, 130, 4, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => `$${value.toFixed(0)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 添加圖表展開/收起功能
+    function toggleCharts() {
+      const content = document.getElementById('chartsContent');
+      const button = document.getElementById('toggleChartsBtn');
+      
+      if (content.style.maxHeight) {
+        content.style.maxHeight = null;
+        content.style.opacity = '0';
+        button.textContent = '展開 ▼';
+        // 等待動畫完成後隱藏內容
+        setTimeout(() => {
+          content.style.display = 'none';
+        }, 300);
+      } else {
+        content.style.display = 'block';
+        // 使用 setTimeout 確保 display:block 已經生效
+        setTimeout(() => {
+          content.style.maxHeight = content.scrollHeight + 'px';
+          content.style.opacity = '1';
+          button.textContent = '收起 ▲';
+        }, 0);
+      }
+    }
+  </script>
+</body>
+</html>

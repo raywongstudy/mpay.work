@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>MPAY.WORK - 使用教學</title>
+  <link href="favicon.ico" rel="icon" type="image/x-icon">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#fd8204',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .logo-text {
+      font-family: 'Arial', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background-color: #fd8204;
+      border-radius: 50%;
+      margin: 0 2px;
+      position: relative;
+      top: -8px;
+    }
+    .slogan {
+      font-family: 'Noto Sans TC', sans-serif;
+      font-weight: 300;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body class="bg-white min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- 頂部導航 -->
+    <div class="flex items-center justify-between mb-12 border-b pb-4">
+      <div class="flex items-center gap-2">
+        <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='mpay_work.html'">
+          <span class="text-primary">MPAY</span>
+          <span class="logo-dot"></span>
+          <span class="text-gray-700">WORK</span>
+        </div>
+        <span class="text-gray-300 mx-3">|</span>
+        <span class="slogan text-gray-500 text-sm">智能分析・輕鬆管理</span>
+      </div>
+      <button 
+        onclick="window.location.href='mpay_work.html'"
+        class="px-4 py-2 text-sm text-primary border border-primary/20 rounded-full hover:bg-primary/5 transition-colors">
+        返回主頁
+      </button>
+    </div>
+
+    <!-- 教學內容 -->
+    <div class="max-w-3xl mx-auto space-y-12">
+      <div>
+        <h1 class="text-2xl font-medium text-gray-800 mb-6">使用教學</h1>
+        <p class="text-gray-600 mb-4">
+          MPAY.WORK 是一個簡單易用的MPAY消費分析工具，幫助您更好地了解自己的消費習慣。
+          以下是使用步驟：
+        </p>
+      </div>
+
+      <!-- 步驟 1 -->
+      <div class="space-y-4">
+        <h2 class="text-xl font-medium text-gray-700">1. 下載交易記錄</h2>
+        <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+          <p class="text-gray-600">登入澳門通 MPay 網上服務：</p>
+          <ol class="list-decimal list-inside space-y-2 text-gray-600">
+            <li>前往 <a href="https://pay.macaupass.com" target="_blank" class="text-primary hover:underline">MPAY錢包官網</a></li>
+            <li>登入您的帳戶</li>
+            <img src="login_tutorial.png" alt="登入教學" class="mt-2 mb-4 rounded-lg shadow-sm w-1/2 mx-auto">
+            <li>進入「交易管理」頁面</li>
+            <img src="management_tutorial.png" alt="交易管理教學" class="mt-2 mb-4 rounded-lg shadow-sm w-1/2 mx-auto">
+            <li>選擇您想要分析的時間範圍</li>
+            <li>點擊「下載」按鈕，選擇 Excel 格式</li>
+            <img src="export_tutorial.png" alt="匯出教學" class="mt-2 mb-4 rounded-lg shadow-sm w-1/2 mx-auto">
+          </ol>
+        </div>
+      </div>
+
+      <!-- 步驟 2 -->
+      <div class="space-y-4">
+        <h2 class="text-xl font-medium text-gray-700">2. 上傳檔案</h2>
+        <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+          <li>前往 <a href="https://mpay.work" target="_blank" class="text-primary hover:underline">MPAY.WORK主頁</a></li>
+          <ol class="list-decimal list-inside space-y-2 text-gray-600">
+            <li>點擊「選擇檔案」按鈕</li>
+            <li>選取您剛才下載的 Excel 檔案</li>
+            <li>系統會自動開始分析您的消費數據</li>
+          </ol>
+          <div class="mt-4 p-4 bg-yellow-50 rounded-lg">
+            <p class="text-yellow-700 text-sm">
+              <strong>注意：</strong> 您的資料僅在瀏覽器中處理，不會上傳至任何伺服器。(開源項目)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步驟 3 -->
+      <div class="space-y-4">
+        <h2 class="text-xl font-medium text-gray-700">3. 查看分析結果</h2>
+        <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+          <p class="text-gray-600">系統會為您生成以下分析：</p>
+          <ul class="list-disc list-inside space-y-2 text-gray-600">
+            <li>支出總覽（總筆數和總金額）</li>
+            <li>圖表分析
+              <ul class="list-disc list-inside ml-6 mt-2 space-y-2">
+                <li>月度支出趨勢</li>
+                <li>前五大商戶支出</li>
+                <li>每月交易筆數</li>
+                <li>平均交易金額趨勢</li>
+              </ul>
+            </li>
+            <li>月度消費分析</li>
+            <li>商戶支出明細（可搜尋和排序）</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 功能說明 -->
+      <div class="space-y-4">
+        <h2 class="text-xl font-medium text-gray-700">其他功能(選用)</h2>
+        <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+          <ul class="list-disc list-inside space-y-2 text-gray-600">
+            <li>點擊「重新上傳」可以分析新的交易記錄</li>
+            <li>使用商戶搜尋功能快速找到特定商戶的消費記錄</li>
+            <li>點擊表格標題可以依不同條件排序</li>
+            <li>展開/收起圖表和月度分析區域以便查看</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 返回按鈕 -->
+      <div class="text-center pt-8">
+        <button 
+          onclick="window.location.href='mpay_work.html'"
+          class="px-8 py-3 text-white bg-primary rounded-full hover:bg-primary/90 transition-colors">
+          開始使用
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html> 
