@@ -2,6 +2,10 @@
 
 MPAY.WORK 是一個基於網頁的支出分析工具，可以幫助用戶輕鬆分析和視覺化他們的支出數據。該工具完全在瀏覽器端運行，無需伺服器支援，保護用戶隱私。
 
+<div align="center">
+<img src="mpay_work.png" width="50%" alt="分析主介面">
+</div>
+
 ## 功能特點
 
 - 📊 支援 Excel 檔案匯入
@@ -23,6 +27,10 @@ Excel 檔案格式要求（按欄位順序）：
 7. 付款方式/其他資訊
 
 ## 主要分析功能
+
+<div align="center">
+<img src="mpay_work_main.png" width="80%" alt="分析主介面">
+</div>
 
 - **總體分析**
   - 支出總筆數統計
