@@ -75,6 +75,17 @@
     <p class="slogan text-gray-500 mb-12 text-lg">智能分析・輕鬆管理</p>
     
     <div class="w-full max-w-md">
+      <!-- 添加拖放區域，默认隐藏 -->
+      <div id="drop-area" class="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4 text-center hover:border-primary/5 transition-colors hidden">
+        <div class="flex flex-col items-center justify-center">
+          <svg class="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+          <p class="text-gray-500 mb-2">將文件拖放到此處</p>
+          <p class="text-gray-400 text-sm">或</p>
+        </div>
+      </div>
+      
       <label class="block">
         <input type="file" 
                id="fileInput" 
@@ -233,23 +244,14 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-      `;
-
-      for (let merchant in breakdown) {
-        const count = breakdown[merchant].count;
-        const total = breakdown[merchant].total;
-        const avg = total / count;
-        resultHTML += `
-          <tr class="hover:bg-gray-50/30 transition-colors">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
-          </tr>
-        `;
-      }
-
-      resultHTML += `
+                  ${merchantTableRows}
+                  <!-- 添加总计行 -->
+                  <tr class="bg-gray-50/50 font-medium">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">總計</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${expenseCount}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${totalExpense.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${(totalExpense / expenseCount).toFixed(2)}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -344,9 +346,85 @@
     // 當使用者選擇檔案時觸發
     document.getElementById('fileInput').addEventListener('change', handleFile, false);
 
+    // 添加拖放功能
+    const dropArea = document.getElementById('drop-area');
+    
+    // 监听整个文档的拖拽事件
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // 当文件拖入文档时显示拖放区域
+    document.body.addEventListener('dragenter', function(e) {
+      if (e.dataTransfer.types.includes('Files')) {
+        dropArea.classList.remove('hidden');
+        highlight();
+      }
+    });
+    
+    // 当文件拖离文档时隐藏拖放区域
+    document.body.addEventListener('dragleave', function(e) {
+      // 只有当拖离的是整个文档时才隐藏
+      if (e.currentTarget.contains(e.relatedTarget)) {
+        return;
+      }
+      if (e.relatedTarget === null) {
+        unhighlight();
+        setTimeout(() => {
+          dropArea.classList.add('hidden');
+        }, 300); // 添加延迟，使过渡效果更平滑
+      }
+    });
+    
+    // 处理拖放区域的事件
+    dropArea.addEventListener('dragover', highlight, false);
+    dropArea.addEventListener('dragleave', unhighlight, false);
+    dropArea.addEventListener('drop', function(e) {
+      handleDrop(e);
+      // 放下文件后隐藏拖放区域
+      unhighlight();
+      setTimeout(() => {
+        dropArea.classList.add('hidden');
+      }, 300);
+    }, false);
+    
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    function highlight() {
+      dropArea.classList.add('border-primary');
+      dropArea.classList.add('bg-primary/5');
+    }
+    
+    function unhighlight() {
+      dropArea.classList.remove('border-primary');
+      dropArea.classList.remove('bg-primary/5');
+    }
+    
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      
+      if (files.length > 0) {
+        // 更新文件输入框，以便显示选择的文件名
+        document.getElementById('fileInput').files = files;
+        // 处理文件
+        handleFile({target: {files: files}});
+      }
+    }
+
     function handleFile(e) {
       const file = e.target.files[0];
       if (!file) return;
+
+      // 檢查檔案類型
+      const fileType = file.name.split('.').pop().toLowerCase();
+      if (fileType !== 'xlsx' && fileType !== 'xls') {
+        alert('請上傳 Excel 檔案 (.xlsx 或 .xls)');
+        return;
+      }
 
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -471,6 +549,22 @@
           `;
         });
 
+      // 生成商户表格行 HTML
+      let merchantTableRows = '';
+      for (let merchant in breakdown) {
+        const count = breakdown[merchant].count;
+        const total = breakdown[merchant].total;
+        const avg = total / count;
+        merchantTableRows += `
+          <tr class="hover:bg-gray-50/30 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
+          </tr>
+        `;
+      }
+
       // 切換視圖
       document.getElementById('initial-view').classList.add('hidden');
       document.getElementById('result-view').classList.remove('hidden');
@@ -588,23 +682,14 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-100">
-        `;
-
-        for (let merchant in breakdown) {
-          const count = breakdown[merchant].count;
-          const total = breakdown[merchant].total;
-          const avg = total / count;
-          resultHTML += `
-            <tr class="hover:bg-gray-50/30 transition-colors">
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${merchant}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${total.toFixed(2)}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${avg.toFixed(2)}</td>
-            </tr>
-          `;
-        }
-
-        resultHTML += `
+                    ${merchantTableRows}
+                    <!-- 添加总计行 -->
+                    <tr class="bg-gray-50/50 font-medium">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">總計</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${expenseCount}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${totalExpense.toFixed(2)}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${(totalExpense / expenseCount).toFixed(2)}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -651,15 +736,103 @@
       filterInput.addEventListener('input', function(e) {
         const searchText = e.target.value.toLowerCase();
         const table = document.getElementById('merchantTable');
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-
-        for (let row of rows) {
+        const tbody = table.getElementsByTagName('tbody')[0];
+        const rows = Array.from(tbody.getElementsByTagName('tr'));
+        
+        // 移除可能存在的空结果提示
+        const existingEmptyMessage = tbody.querySelector('.empty-result-message');
+        if (existingEmptyMessage) {
+          tbody.removeChild(existingEmptyMessage);
+        }
+        
+        // 获取总计行（可能是最后一行，也可能不存在）
+        let totalRow = rows.find(row => row.cells[0] && row.cells[0].textContent === '總計');
+        
+        // 如果找不到总计行，可能是之前被移除了，需要重新创建
+        if (!totalRow) {
+          // 从 localStorage 获取数据重新创建总计行
+          const savedData = JSON.parse(localStorage.getItem('analysisData') || '{}');
+          if (savedData && savedData.breakdown) {
+            const expenseCount = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.count, 0);
+            const totalExpense = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.total, 0);
+            
+            totalRow = document.createElement('tr');
+            totalRow.className = 'bg-gray-50/50 font-medium';
+            totalRow.innerHTML = `
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">總計</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${expenseCount}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${totalExpense.toFixed(2)}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${(totalExpense / expenseCount).toFixed(2)}</td>
+            `;
+            tbody.appendChild(totalRow);
+          }
+        }
+        
+        // 获取普通行（排除总计行和可能存在的空结果提示）
+        const normalRows = rows.filter(row => 
+          row.cells[0] && 
+          row.cells[0].textContent !== '總計' && 
+          !row.classList.contains('empty-result-message')
+        );
+        
+        let visibleCount = 0;
+        let visibleTotal = 0;
+        let hasVisibleRows = false;
+        
+        // 过滤普通行
+        for (let row of normalRows) {
           const merchantName = row.cells[0].textContent.toLowerCase();
           if (merchantName.includes(searchText)) {
             row.style.display = '';
+            hasVisibleRows = true; // 有符合条件的商户
+            // 累计可见行的数据
+            visibleCount += parseInt(row.cells[1].textContent);
+            visibleTotal += parseFloat(row.cells[2].textContent.replace(/[^0-9.-]+/g, ''));
           } else {
             row.style.display = 'none';
           }
+        }
+        
+        // 处理总计行和空结果提示
+        if (hasVisibleRows && totalRow) {
+          // 有符合条件的商户，显示总计行
+          totalRow.style.display = ''; // 显示总计行
+          
+          // 更新总计行数据
+          if (searchText) {
+            totalRow.cells[1].textContent = visibleCount;
+            totalRow.cells[2].textContent = `$${visibleTotal.toFixed(2)}`;
+            totalRow.cells[3].textContent = `$${(visibleTotal / visibleCount).toFixed(2)}`;
+          } else {
+            // 如果搜索框为空，恢复原始总计数据
+            const savedData = JSON.parse(localStorage.getItem('analysisData') || '{}');
+            if (savedData && savedData.breakdown) {
+              const expenseCount = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.count, 0);
+              const totalExpense = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.total, 0);
+              
+              totalRow.cells[1].textContent = expenseCount;
+              totalRow.cells[2].textContent = `$${totalExpense.toFixed(2)}`;
+              totalRow.cells[3].textContent = `$${(totalExpense / expenseCount).toFixed(2)}`;
+            }
+          }
+        } else if (searchText) {
+          // 没有符合条件的商户，隐藏总计行并显示提示
+          if (totalRow) {
+            totalRow.style.display = 'none'; // 隐藏总计行
+          }
+          
+          // 创建并添加空结果提示
+          const emptyRow = document.createElement('tr');
+          emptyRow.className = 'empty-result-message';
+          const emptyCell = document.createElement('td');
+          emptyCell.colSpan = 4;
+          emptyCell.className = 'px-6 py-8 text-center text-gray-500';
+          emptyCell.textContent = '沒有符合條件的商戶';
+          emptyRow.appendChild(emptyCell);
+          tbody.appendChild(emptyRow);
+        } else if (totalRow) {
+          // 搜索框为空，显示总计行
+          totalRow.style.display = ''; // 显示总计行
         }
       });
     }
@@ -672,6 +845,10 @@
       const table = document.getElementById('merchantTable');
       const tbody = table.getElementsByTagName('tbody')[0];
       const rows = Array.from(tbody.getElementsByTagName('tr'));
+      
+      // 分离总计行和普通行
+      const totalRow = rows[rows.length - 1];
+      const normalRows = rows.slice(0, rows.length - 1);
       
       // 更新排序方向
       if (currentSortColumn === columnIndex) {
@@ -713,11 +890,19 @@
         }
       };
 
-      // 排序行
-      rows.sort(compareFn);
+      // 排序普通行
+      normalRows.sort(compareFn);
       
-      // 重新插入排序后的行
-      rows.forEach(row => tbody.appendChild(row));
+      // 清空表格
+      while (tbody.firstChild) {
+        tbody.removeChild(tbody.firstChild);
+      }
+      
+      // 重新插入排序后的普通行
+      normalRows.forEach(row => tbody.appendChild(row));
+      
+      // 总计行始终在底部
+      tbody.appendChild(totalRow);
     }
 
     // 添加展開/收起功能
