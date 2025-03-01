@@ -1,0 +1,48 @@
+.logo-text {
+  font-family: 'Arial', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.logo-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #fd8204;
+  border-radius: 50%;
+  margin: 0 2px;
+  position: relative;
+  top: -8px;
+}
+
+.slogan {
+  font-family: 'Noto Sans TC', sans-serif;
+  font-weight: 300;
+}
+
+#monthlyAnalysisContent {
+  transition: max-height 0.3s ease-out;
+  overflow: hidden;
+}
+
+#chartsContent {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+  opacity: 1;
+}
+
+#merchantDetailsContent {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+  opacity: 1;
+}
+
+#timeAnalysisContent {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+  opacity: 1;
+}
+
+.chart-container {
+  height: 300px;
+} 
