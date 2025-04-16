@@ -26,6 +26,37 @@
       },
     }
   </script>
+  <style>
+    /* 圆形返回按钮样式 */
+    .back-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: rgba(253, 130, 4, 0.9);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+    
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .back-to-top:hover {
+      background-color: rgba(253, 130, 4, 1);
+    }
+  </style>
 </head>
 <body class="bg-white min-h-screen">
   <div id="initial-view" class="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen">
@@ -307,6 +338,59 @@
           </div>
         </div>
 
+        <!-- 添加所有支出明細區域 -->
+        <div class="bg-white rounded-xl overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+               onclick="toggleExpenseDetails()">
+            <div class="flex items-center gap-4">
+              <h3 class="text-gray-700 font-medium">所有支出明細</h3>
+              <span class="text-sm text-gray-500">
+                共 <span class="text-primary font-medium">${expenseCount}</span> 筆交易
+              </span>
+            </div>
+            <div class="flex items-center gap-4">
+              <input 
+                type="text" 
+                id="expenseFilter" 
+                placeholder="搜尋項目..." 
+                class="px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:border-primary/30"
+                onclick="event.stopPropagation()"
+              >
+              <button class="text-gray-500 text-sm" id="toggleExpenseBtn">
+                展開 ▼
+              </button>
+            </div>
+          </div>
+          <div id="expenseDetailsContent" class="transition-all duration-300" style="display: none; max-height: 0; opacity: 0;">
+            <div class="overflow-x-auto">
+              <table class="min-w-full" id="expenseTable">
+                <thead class="bg-gray-50/30">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortExpenseTable(0)">
+                      交易時間
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortExpenseTable(1)">
+                      項目名稱
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortExpenseTable(2)">
+                      分類
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortExpenseTable(3)">
+                      金額
+                      <span class="ml-1 sort-icon">↕</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="expenseTableBody">
+                  ${expenseTableRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -343,6 +427,13 @@
       </div>
     </div>
   </footer>
+
+  <!-- 添加返回按钮 -->
+  <div id="backButton" class="back-to-top">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+    </svg>
+  </div>
 
 <script src="script.js"></script>
 </body>
