@@ -9,6 +9,16 @@ window.addEventListener('load', function() {
     // 從 localStorage 獲取分析數據
     const savedData = JSON.parse(localStorage.getItem('analysisData') || '{}');
     if (savedData.monthlyData && savedData.breakdown) {
+      // 恢復原始數據，以便日期變更時重新分析
+      if (savedData.originalData) {
+        window.originalData = savedData.originalData;
+      }
+      
+      // 恢復allExpenses數據，用於分類支出佔比圖
+      if (savedData.allExpenses) {
+        window.allExpenses = savedData.allExpenses;
+      }
+      
       // 重新初始化圖表
       initializeCharts(savedData.monthlyData, savedData.breakdown);
       
@@ -16,6 +26,56 @@ window.addEventListener('load', function() {
       if (savedData.timePeriodData) {
         initializeTimePeriodCharts(savedData.timePeriodData);
       }
+      
+      // 設置數據日期
+      const startDate = savedData.startDate || '';
+      const endDate = savedData.endDate || '';
+      
+      if (startDate || endDate) {
+        if (startDate) {
+          document.getElementById('startDatePicker').value = startDate;
+        }
+        if (endDate) {
+          document.getElementById('endDatePicker').value = endDate;
+        }
+        
+        // 更新頂部的數據日期顯示
+        const headerHTML = `
+          <div class="flex items-center gap-2">
+            <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='index.html'">
+              <span class="text-primary">MPAY</span>
+              <span class="logo-dot"></span>
+              <span class="text-gray-700">WORK</span>
+            </div>
+            <span class="text-gray-300 mx-3">|</span>
+            <span class="slogan text-gray-500 text-sm">智能收支・輕鬆管理</span>
+            <span class="text-gray-300 mx-3">|</span>
+            <span class="text-gray-500 text-sm">數據日期範圍: <span id="currentDataDate" class="text-primary">${getDateRangeText(startDate, endDate)}</span></span>
+          </div>
+          <div class="flex items-center gap-4">
+            <button 
+              onclick="resetView()"
+              class="px-4 py-2 text-sm text-primary border border-primary/20 rounded-full hover:bg-primary/5 transition-colors">
+              重新上傳
+            </button>
+            <h1 class="text-lg font-medium text-gray-600">支出分析報表</h1>
+          </div>
+        `;
+        
+        // 更新頂部區域
+        const headerContainer = document.querySelector('#result-view .container > div:first-child');
+        if (headerContainer) {
+          headerContainer.innerHTML = headerHTML;
+        }
+      } else {
+        // 如果沒有保存日期範圍，設置為當天
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('startDatePicker').value = today;
+        document.getElementById('endDatePicker').value = today;
+      }
+      
+      // 添加數據日期更新事件
+      document.getElementById('updateDataDateBtn').addEventListener('click', updateDataDateAnalysis);
     }
     
     // 設置表格篩選功能
@@ -169,13 +229,46 @@ function handleFile(e) {
     // 將工作表轉換成二維陣列 (每一列為一個陣列)
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     
-    analyzeData(jsonData);
+    // 保存原始數據到全局變量，以便日期變更時重新分析
+    window.originalData = jsonData;
+    
+    // 設置默認日期範圍
+    // 找出數據中的最早和最晚日期
+    let earliestDate = null;
+    let latestDate = null;
+    
+    jsonData.forEach(function(row) {
+      if (row.length < 7 || row[3] !== '交易') return;
+      
+      const date = new Date(row[1]);
+      if (!isNaN(date.getTime())) {
+        if (!earliestDate || date < earliestDate) {
+          earliestDate = new Date(date);
+        }
+        if (!latestDate || date > latestDate) {
+          latestDate = new Date(date);
+        }
+      }
+    });
+    
+    const startDate = earliestDate ? earliestDate.toISOString().split('T')[0] : null;
+    const endDate = latestDate ? latestDate.toISOString().split('T')[0] : null;
+    
+    // 將最早和最晚日期設置為日期選擇器的值
+    if (startDate) {
+      document.getElementById('startDatePicker').value = startDate;
+    }
+    if (endDate) {
+      document.getElementById('endDatePicker').value = endDate;
+    }
+    
+    analyzeData(jsonData, startDate, endDate);
   };
   reader.readAsArrayBuffer(file);
 }
 
 // 分析資料
-function analyzeData(data) {
+function analyzeData(data, startDate, endDate) {
   // 檢查是否有資料
   if (data.length === 0) {
     document.getElementById('result').innerHTML = '<p>沒有資料。</p>';
@@ -199,15 +292,17 @@ function analyzeData(data) {
     
     // 定義各類別的關鍵詞列表
     const categories = {
-      '餐飲': ['餐廳', '茶餐廳', '食堂', '餐飲', '小吃', '飯店', '麵', '麥當勞', '咖啡', 'cafe', '茶', '酒吧', '烘焙', 'bar', '飲食', '小食', '美食', '大家樂', '食品', '甜品', 'cake'],
+      '餐飲': ['遊泰號', '餐饮', '餐廳', '茶餐廳', '食堂', '餐飲', '小吃', '飯店', '麵', '麥當勞', 'cafe', '茶', '酒吧', '烘焙', 'bar', '飲食', '小食', '美食', '大家樂', '食品', '甜品', 'cake'],
+      '咖啡': ['咖啡' ],
       '外賣APP': ['mfood', '澳覓', '閃蜂'],
-      '超市/雜貨': ['超市', '超級市場', '便利店', 'ok', 'brisbo', '便利商店', '7-11', '雜貨', '士多', 'supermarket', 'sanmiu'],
+      '超市/雜貨': ['7-ELEVEN', '超市', '超級市場', '便利店', 'ok', 'brisbo', '便利商店', '7-11', '雜貨', '士多', 'supermarket', 'sanmiu'],
       '交通': ['的士', 'taxi', '計程車', '巴士', '公交', '地鐵', '輕軌', '加油', '交通', '停車', '泊車', '治安警察局', '船務'],
-      '購物': ['商場', '百貨', '商店', '店', 'mall', '超市', '市場', '手信'],
+      '購物': ['商場', '百貨', '商店', '店', 'mall', '超市', '市場', '手信', '淘寶天貓'],
       '娛樂': ['電影院', '戲院', '遊戲', '娛樂', '游樂', '主題公園', 'ktv', '唱'],
       '住宿': ['酒店', '旅館', '賓館', 'hotel', '住宿'],
       '醫療健康': ['醫院', '診所', '藥房', '藥店', '保健', '健康', '醫藥', '醫療'],
-      '教育': ['學校', '教育', '補習', '書店', '學院', '大學']
+      '教育': ['學校', '教育', '補習', '書店', '學院', '大學'],
+      '售賣機': ['點指BuyBuy', 'DGbuybuy', 'Vita']
     };
     
     // 將商戶名稱轉為小寫
@@ -237,6 +332,20 @@ function analyzeData(data) {
 
   // 新增保存所有交易記錄
   let allExpenses = [];
+  
+  // 將選擇的日期轉換為Date對象
+  const selectedStartDate = startDate ? new Date(startDate) : null;
+  const selectedEndDate = endDate ? new Date(endDate) : null;
+  
+  // 如果有設置開始日期，則設置時間為當天的00:00:00
+  if (selectedStartDate) {
+    selectedStartDate.setHours(0, 0, 0, 0);
+  }
+  
+  // 如果有設置結束日期，則設置時間為當天的23:59:59
+  if (selectedEndDate) {
+    selectedEndDate.setHours(23, 59, 59, 999);
+  }
 
   // 遍歷每一列 (注意：若檔案中有標題列，可適當跳過第一列)
   data.forEach(function(row) {
@@ -246,6 +355,18 @@ function analyzeData(data) {
     // 僅分析「交易」的資料（支出），不包含「轉入」等
     const transactionType = row[3];
     if (transactionType !== '交易') return;
+    
+    // 解析交易日期
+    const transactionDate = new Date(row[1]);
+    
+    // 如果選擇了日期範圍，則只分析該範圍內的數據
+    if (selectedStartDate && transactionDate < selectedStartDate) {
+      return; // 早於開始日期，跳過此交易
+    }
+    
+    if (selectedEndDate && transactionDate > selectedEndDate) {
+      return; // 晚於結束日期，跳過此交易
+    }
     
     const merchant = row[2];              // 商戶名稱
     let amount = parseFloat(row[5]);        // 金額欄
@@ -302,6 +423,9 @@ function analyzeData(data) {
     }
   });
   
+  // 將交易記錄保存為全局變量，以便圖表使用
+  window.allExpenses = allExpenses;
+  
   // 處理每個時段的前三大消費商戶
   ['morning', 'afternoon', 'evening'].forEach(period => {
     const merchants = timePeriodData[period].merchants;
@@ -325,6 +449,16 @@ function analyzeData(data) {
     if (row.length < 7 || row[3] !== '交易') return;
     
     const date = new Date(row[1]);
+    
+    // 如果選擇了日期範圍，則只分析該範圍內的數據
+    if (selectedStartDate && date < selectedStartDate) {
+      return; // 早於開始日期，跳過此交易
+    }
+    
+    if (selectedEndDate && date > selectedEndDate) {
+      return; // 晚於結束日期，跳過此交易
+    }
+    
     const monthKey = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
     const amount = parseFloat(row[5]);
     
@@ -362,7 +496,7 @@ function analyzeData(data) {
       , {amount: 0});
 
       monthlyAnalysisHTML += `
-        <div class="bg-gray-50/30 p-4 rounded-lg hover:bg-gray-50/50 transition-colors">
+        <div class="bg-gray-50/30 p-4 rounded-lg hover:tab_box transition-colors">
           <div class="flex items-center justify-between mb-2">
             <h4 class="font-medium text-gray-700">${month} 月</h4>
             <span class="text-primary font-medium">$${data.total.toFixed(2)}</span>
@@ -426,15 +560,47 @@ function analyzeData(data) {
   document.getElementById('initial-view').classList.add('hidden');
   document.getElementById('result-view').classList.remove('hidden');
 
+  // 更新顯示的數據日期範圍
+  const dateRangeText = getDateRangeText(startDate, endDate);
+  
+  // 更新頂部的數據日期顯示
+  const headerHTML = `
+    <div class="flex items-center gap-2">
+      <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='index.html'">
+        <span class="text-primary">MPAY</span>
+        <span class="logo-dot"></span>
+        <span class="text-gray-700">WORK</span>
+      </div>
+      <span class="text-gray-300 mx-3">|</span>
+      <span class="slogan text-gray-500 text-sm">智能收支・輕鬆管理</span>
+      <span class="text-gray-300 mx-3">|</span>
+      <span class="text-gray-500 text-sm">數據日期範圍: <span id="currentDataDate" class="text-primary">${getDateRangeText(startDate, endDate)}</span></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <button 
+        onclick="resetView()"
+        class="px-4 py-2 text-sm text-primary border border-primary/20 rounded-full hover:bg-primary/5 transition-colors">
+        重新上傳
+      </button>
+      <h1 class="text-lg font-medium text-gray-600">支出分析報表</h1>
+    </div>
+  `;
+  
+  // 更新頂部區域
+  const headerContainer = document.querySelector('#result-view .container > div:first-child');
+  if (headerContainer) {
+    headerContainer.innerHTML = headerHTML;
+  }
+
   // 更新結果顯示的 HTML 生成部分
   let resultHTML = `
     <div class="space-y-8">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-gray-50/50 rounded-xl p-6">
+        <div class="tab_box rounded-xl p-6">
           <p class="text-gray-500 text-sm mb-2">支出總筆數</p>
           <p class="text-3xl font-bold text-primary">${expenseCount}</p>
         </div>
-        <div class="bg-gray-50/50 rounded-xl p-6">
+        <div class="tab_box rounded-xl p-6">
           <p class="text-gray-500 text-sm mb-2">支出總金額</p>
           <p class="text-3xl font-bold text-primary">$${totalExpense.toFixed(2)}</p>
         </div>
@@ -442,7 +608,7 @@ function analyzeData(data) {
 
       <!-- 新增時段分析模塊 -->
       <div class="bg-white rounded-xl overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+        <div class="px-6 py-4 tab_box flex justify-between items-center cursor-pointer"
              onclick="toggleTimeAnalysis()">
           <h3 class="text-gray-700 font-medium">時段消費分析</h3>
           <button class="text-gray-500 text-sm" id="toggleTimeBtn">
@@ -450,11 +616,17 @@ function analyzeData(data) {
           </button>
         </div>
         <div id="timeAnalysisContent" class="p-6 transition-all duration-300">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-gray-50/30 rounded-xl p-6">
               <h3 class="text-gray-700 font-medium mb-4">各時段消費佔比</h3>
               <div class="chart-container">
                 <canvas id="timePeriodPie"></canvas>
+              </div>
+            </div>
+            <div class="bg-gray-50/30 rounded-xl p-6">
+              <h3 class="text-gray-700 font-medium mb-4">支出分類佔比</h3>
+              <div class="chart-container">
+                <canvas id="categoryPie"></canvas>
               </div>
             </div>
             <div class="bg-gray-50/30 rounded-xl p-6">
@@ -513,7 +685,7 @@ function analyzeData(data) {
 
       <!-- 圖表區域 -->
       <div class="bg-white rounded-xl overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+        <div class="px-6 py-4 tab_box flex justify-between items-center cursor-pointer"
              onclick="toggleCharts()">
           <h3 class="text-gray-700 font-medium">圖表分析</h3>
           <button class="text-gray-500 text-sm" id="toggleChartsBtn">
@@ -552,7 +724,7 @@ function analyzeData(data) {
 
       <!-- 月度消費分析 -->
       <div class="bg-white rounded-xl overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+        <div class="px-6 py-4 tab_box flex justify-between items-center cursor-pointer"
              onclick="toggleMonthlyAnalysis()">
           <div class="flex items-center gap-4">
             <h3 class="text-gray-700 font-medium">月度消費分析</h3>
@@ -573,7 +745,7 @@ function analyzeData(data) {
 
       <!-- 修改商戶支出明細區域 -->
       <div class="bg-white rounded-xl overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+        <div class="px-6 py-4 tab_box flex justify-between items-center cursor-pointer"
              onclick="toggleMerchantDetails()">
           <div class="flex items-center gap-4">
             <h3 class="text-gray-700 font-medium">各商戶支出明細</h3>
@@ -620,7 +792,7 @@ function analyzeData(data) {
               <tbody class="divide-y divide-gray-100">
                 ${merchantTableRows}
                 <!-- 添加总计行 -->
-                <tr class="bg-gray-50/50 font-medium">
+                <tr class="tab_box font-medium">
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">總計</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${expenseCount}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$${totalExpense.toFixed(2)}</td>
@@ -634,7 +806,7 @@ function analyzeData(data) {
 
       <!-- 添加所有支出明細區域 -->
       <div class="bg-white rounded-xl overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+        <div class="px-6 py-4 tab_box flex justify-between items-center cursor-pointer"
              onclick="toggleExpenseDetails()">
           <div class="flex items-center gap-4">
             <h3 class="text-gray-700 font-medium">所有支出明細</h3>
@@ -690,40 +862,138 @@ function analyzeData(data) {
 
   document.getElementById('result').innerHTML = resultHTML;
   
-  // 保存分析結果和數據
-  localStorage.setItem('analysisResult', resultHTML);
+  // 保存分析結果到 localStorage
+  localStorage.setItem('analysisResult', document.getElementById('result').innerHTML);
   localStorage.setItem('analysisData', JSON.stringify({
-    monthlyData,
-    breakdown,
-    timePeriodData,
-    allExpenses
+    monthlyData: monthlyData,
+    breakdown: breakdown,
+    timePeriodData: timePeriodData,
+    startDate: startDate || null,
+    endDate: endDate || null,
+    allExpenses: allExpenses,
+    originalData: window.originalData // 保存原始數據
   }));
   
-  // 初始化圖表
+  // 保存時段分析數據為全局變量
+  window.timePeriodData = timePeriodData;
+  
+  // 保存月度數據和商戶明細為全局變量
+  window.monthlyData = monthlyData;
+  window.breakdown = breakdown;
+  
+  // 生成圖表
   initializeCharts(monthlyData, breakdown);
   
   // 初始化時段分析圖表
   initializeTimePeriodCharts(timePeriodData);
-
+  
   // 設置表格篩選功能
   setupTableFilter();
-
+  
+  // 添加數據日期更新事件
+  document.getElementById('updateDataDateBtn').addEventListener('click', updateDataDateAnalysis);
+  
   // 添加返回按钮功能
   setupBackToTopButton();
 }
 
+// 更新數據日期範圍並重新分析
+function updateDataDateAnalysis() {
+  const startDate = document.getElementById('startDatePicker').value;
+  const endDate = document.getElementById('endDatePicker').value;
+  
+  if ((!startDate && !endDate) || !window.originalData) {
+    alert('請選擇有效日期範圍或重新上傳數據');
+    return;
+  }
+  
+  // 檢查日期範圍是否有效
+  if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+    alert('開始日期不能晚於結束日期');
+    return;
+  }
+  
+  // 顯示加載動畫
+  const updateBtn = document.getElementById('updateDataDateBtn');
+  const originalBtnText = updateBtn.textContent;
+  updateBtn.disabled = true;
+  updateBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>更新中...';
+  
+  // 清除之前的圖表實例，避免重複創建
+  Chart.helpers.each(Chart.instances, function(instance) {
+    instance.destroy();
+  });
+  
+  // 延遲 0.5 秒後更新數據
+  setTimeout(() => {
+    // 使用選擇的日期範圍重新分析數據
+    analyzeData(window.originalData, startDate, endDate);
+    
+    // 更新頂部的數據日期顯示
+    const headerHTML = `
+      <div class="flex items-center gap-2">
+        <div class="logo-text text-2xl cursor-pointer" onclick="window.location.href='index.html'">
+          <span class="text-primary">MPAY</span>
+          <span class="logo-dot"></span>
+          <span class="text-gray-700">WORK</span>
+        </div>
+        <span class="text-gray-300 mx-3">|</span>
+        <span class="slogan text-gray-500 text-sm">智能收支・輕鬆管理</span>
+        <span class="text-gray-300 mx-3">|</span>
+        <span class="text-gray-500 text-sm">數據日期範圍: <span id="currentDataDate" class="text-primary">${getDateRangeText(startDate, endDate)}</span></span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button 
+          onclick="resetView()"
+          class="px-4 py-2 text-sm text-primary border border-primary/20 rounded-full hover:bg-primary/5 transition-colors">
+          重新上傳
+        </button>
+        <h1 class="text-lg font-medium text-gray-600">支出分析報表</h1>
+      </div>
+    `;
+    
+    // 更新頂部區域
+    const headerContainer = document.querySelector('#result-view .container > div:first-child');
+    if (headerContainer) {
+      headerContainer.innerHTML = headerHTML;
+    }
+    
+    // 保存分析結果和數據到 localStorage
+    const resultHTML = document.getElementById('result').innerHTML;
+    localStorage.setItem('analysisResult', resultHTML);
+    
+    // 保存分析數據，以便在頁面刷新後恢復圖表
+    localStorage.setItem('analysisData', JSON.stringify({
+      monthlyData: window.monthlyData,
+      breakdown: window.breakdown,
+      timePeriodData: window.timePeriodData,
+      originalData: window.originalData,
+      startDate: startDate,
+      endDate: endDate,
+      allExpenses: window.allExpenses
+    }));
+    
+    // 恢復按鈕狀態
+    updateBtn.disabled = false;
+    updateBtn.textContent = originalBtnText;
+  }, 500);
+}
+
 // 修改重置函數
 function resetView() {
-  // 清空檔案輸入
-  document.getElementById('fileInput').value = '';
-  // 清空結果區域
-  document.getElementById('result').innerHTML = '';
-  // 清除所有 localStorage 數據
+  // 清除 localStorage 中的分析結果
   localStorage.removeItem('analysisResult');
   localStorage.removeItem('analysisData');
-  // 切換回初始視圖
-  document.getElementById('result-view').classList.add('hidden');
+  
+  // 清除原始數據
+  window.originalData = null;
+  
+  // 重置視圖
   document.getElementById('initial-view').classList.remove('hidden');
+  document.getElementById('result-view').classList.add('hidden');
+  
+  // 清空文件輸入框
+  document.getElementById('fileInput').value = '';
 }
 
 // 添加表格篩選功能
@@ -843,12 +1113,12 @@ function filterTable(tableId, searchText, searchColumnIndex, searchMultipleColum
             const expenseCount = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.count, 0);
             const totalExpense = Object.values(savedData.breakdown).reduce((sum, item) => sum + item.total, 0);
             
-            totalRow.cells[1].textContent = expenseCount;
-            totalRow.cells[2].textContent = `$${totalExpense.toFixed(2)}`;
-            totalRow.cells[3].textContent = `$${(totalExpense / expenseCount).toFixed(2)}`;
+            totalRow.cells[countColumn].textContent = expenseCount;
+            totalRow.cells[amountColumn].textContent = `$${totalExpense.toFixed(2)}`;
+            totalRow.cells[avgColumn].textContent = `$${(totalExpense / expenseCount).toFixed(2)}`;
           } else if (tableId === 'expenseTable' && savedData.allExpenses) {
             const totalExpense = savedData.allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-            totalRow.cells[3].textContent = `$${totalExpense.toFixed(2)}`;
+            totalRow.cells[amountColumn].textContent = `$${totalExpense.toFixed(2)}`;
           }
         }
       }
@@ -1133,6 +1403,114 @@ function initializeCharts(monthlyData, breakdown) {
   });
 }
 
+// 初始化分類支出佔比圖
+function initializeCategoryPieChart() {
+  // 從全局變量中獲取所有支出記錄
+  const allExpenses = window.allExpenses || [];
+  
+  if (!allExpenses || allExpenses.length === 0) {
+    console.warn('沒有支出數據，無法創建分類支出圖表');
+    return;
+  }
+  
+  // 按分類統計支出
+  const categoryData = {};
+  let totalAmount = 0;
+  
+  allExpenses.forEach(expense => {
+    const category = expense.category || '其他';
+    if (!categoryData[category]) {
+      categoryData[category] = 0;
+    }
+    categoryData[category] += expense.amount;
+    totalAmount += expense.amount;
+  });
+  
+  // 將分類數據轉換為數組並排序
+  const sortedCategories = Object.entries(categoryData)
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: (amount / totalAmount * 100).toFixed(1)
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  
+  // 生成隨機顏色，但保持橙色系列
+  const generateColors = (count) => {
+    // 使用多種不同的顏色
+    const colorPalette = [
+      'rgba(255, 99, 132, 0.8)',    // 紅色
+      'rgba(54, 162, 235, 0.8)',    // 藍色
+      'rgba(255, 206, 86, 0.8)',    // 黃色
+      'rgba(75, 192, 192, 0.8)',    // 綠色
+      'rgba(153, 102, 255, 0.8)',   // 紫色
+      'rgba(255, 159, 64, 0.8)',    // 橙色
+      'rgba(199, 199, 199, 0.8)',   // 灰色
+      'rgba(83, 102, 255, 0.8)',    // 藍紫色
+      'rgba(78, 205, 196, 0.8)',    // 青綠色
+      'rgba(255, 99, 71, 0.8)',     // 番茄紅
+      'rgba(255, 215, 0, 0.8)',     // 金色
+      'rgba(124, 252, 0, 0.8)',     // 草綠色
+      'rgba(147, 112, 219, 0.8)',   // 淡紫色
+      'rgba(250, 128, 114, 0.8)',   // 鮭魚色
+      'rgba(0, 128, 128, 0.8)'      // 藍綠色
+    ];
+    
+    const colors = [];
+    
+    // 如果分類數量超過預設顏色數量，則循環使用
+    for (let i = 0; i < count; i++) {
+      colors.push(colorPalette[i % colorPalette.length]);
+    }
+    
+    return colors;
+  };
+  
+  // 創建餅圖
+  const ctx = document.getElementById('categoryPie');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: sortedCategories.map(c => `${c.category} (${c.percentage}%)`),
+        datasets: [{
+          data: sortedCategories.map(c => c.amount),
+          backgroundColor: generateColors(sortedCategories.length),
+          borderWidth: 1,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: {
+                size: 11
+              },
+              boxWidth: 15
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const value = context.raw;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = Math.round((value / total) * 100);
+                return `$${value.toFixed(2)} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  } else {
+    console.error('找不到圖表容器 #categoryPie');
+  }
+}
+
 // 添加圖表展開/收起功能
 function toggleCharts() {
   const content = document.getElementById('chartsContent');
@@ -1207,8 +1585,10 @@ function toggleTimeAnalysis() {
 
 // 初始化時段分析圖表
 function initializeTimePeriodCharts(timePeriodData) {
-  toggleTimeAnalysis()
-  toggleCharts()
+  // 移除這些切換函數的調用，避免在頁面加載時隱藏圖表
+  // toggleTimeAnalysis()
+  // toggleCharts()
+  
   // 準備數據
   const labels = ['上午 (06:00-12:00)', '下午 (12:00-18:00)', '晚上 (18:00-06:00)'];
   const data = [
@@ -1236,19 +1616,20 @@ function initializeTimePeriodCharts(timePeriodData) {
     }
   };
   
-  // 1. 各時段消費佔比圓餅圖
+  // 1. 時段佔比餅圖
   new Chart(document.getElementById('timePeriodPie'), {
-    type: 'doughnut',
+    type: 'pie',
     data: {
       labels: labels,
       datasets: [{
         data: data,
         backgroundColor: [
-          'rgba(255, 159, 64, 0.7)',  // 橙色
-          'rgba(54, 162, 235, 0.7)',  // 藍色
-          'rgba(75, 192, 192, 0.7)'   // 青色
+          'rgba(255, 159, 64, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(153, 102, 255, 0.7)'
         ],
-        borderWidth: 1
+        borderWidth: 1,
+        borderColor: '#fff'
       }]
     },
     options: {
@@ -1257,9 +1638,9 @@ function initializeTimePeriodCharts(timePeriodData) {
         ...commonOptions.plugins,
         tooltip: {
           callbacks: {
-            label: (context) => {
+            label: function(context) {
               const value = context.raw;
-              const percentage = ((value / totalAmount) * 100).toFixed(1);
+              const percentage = Math.round((value / totalAmount) * 100);
               return `$${value.toFixed(2)} (${percentage}%)`;
             }
           }
@@ -1268,7 +1649,7 @@ function initializeTimePeriodCharts(timePeriodData) {
     }
   });
   
-  // 2. 各時段消費金額柱狀圖
+  // 2. 時段金額條形圖
   new Chart(document.getElementById('timePeriodBar'), {
     type: 'bar',
     data: {
@@ -1276,81 +1657,25 @@ function initializeTimePeriodCharts(timePeriodData) {
       datasets: [{
         label: '消費金額',
         data: data,
-        backgroundColor: [
-          'rgba(255, 159, 64, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(75, 192, 192, 0.7)'
-        ],
-        borderWidth: 1,
-        yAxisID: 'y'
-      }, {
-        label: '交易筆數',
-        data: counts,
-        backgroundColor: [
-          'rgba(255, 159, 64, 0.3)',
-          'rgba(54, 162, 235, 0.3)',
-          'rgba(75, 192, 192, 0.3)'
-        ],
-        borderWidth: 1,
-        yAxisID: 'y1'
+        backgroundColor: 'rgba(253, 130, 4, 0.7)',
+        borderRadius: 4
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom'
-        },
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const datasetLabel = context.dataset.label;
-              const value = context.raw;
-              if (datasetLabel === '消費金額') {
-                return `${datasetLabel}: $${value.toFixed(2)}`;
-              } else {
-                return `${datasetLabel}: ${value}`;
-              }
-            }
-          }
-        }
-      },
+      ...commonOptions,
       scales: {
         y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          title: {
-            display: true,
-            text: '金額'
-          },
+          beginAtZero: true,
           ticks: {
             callback: value => `$${value.toFixed(0)}`
-          },
-          beginAtZero: true
-        },
-        y1: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          title: {
-            display: true,
-            text: '筆數'
-          },
-          grid: {
-            drawOnChartArea: false
-          },
-          beginAtZero: true
+          }
         }
       }
     }
   });
   
-  // 添加以下代码，确保图表容器高度适应内容
-  document.querySelectorAll('.chart-container').forEach(container => {
-    container.style.height = '300px';
-  });
+  // 初始化分類支出佔比圖
+  initializeCategoryPieChart();
 }
 
 // 添加所有支出明細展開/收起功能
@@ -1425,5 +1750,38 @@ function setupBackToTopButton() {
   // 初始状态可能需要显示按钮
   if (window.scrollY > 200) {
     backButton.classList.add('visible');
+  }
+}
+
+// 格式化日期範圍文本
+function getDateRangeText(startDate, endDate) {
+  if (startDate && endDate) {
+    const start = new Date(startDate).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const end = new Date(endDate).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return `${start} 至 ${end}`;
+  } else if (startDate) {
+    const start = new Date(startDate).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return `${start} 起`;
+  } else if (endDate) {
+    const end = new Date(endDate).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return `至 ${end}`;
+  } else {
+    return '全部';
   }
 }
