@@ -64,6 +64,9 @@ MPAY.WORK 支援的 Excel 檔案需符合以下欄位順序：
   - 前五大商戶支出分析
   - 每月交易筆數統計
   - 平均交易金額趨勢
+<div align="center">
+  <img src="mpay_work_second.png" width="80%" alt="MPAY.WORK 主分析功能展示 - 支出視覺化圖表">
+</div>
 
 - **月度分析**
   - 每月支出總額與交易數量
